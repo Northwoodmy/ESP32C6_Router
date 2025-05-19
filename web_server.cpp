@@ -10,7 +10,6 @@
 TaskHandle_t webServerTaskHandle = NULL;
 WebServer server(80);
 
-<<<<<<< HEAD
 void handleRoot();
 void handleSave();
 void handleSystemInfo();
@@ -18,31 +17,19 @@ void handleTaskInfo();
 
 // HTML页面
 const char* html_page = R"rawliteral(
-=======
-// HTML页面
-const char* html_page = R"(
->>>>>>> ccfc7efee610ce0d4065fa4704320b3c64f0ff09
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset='utf-8'>
-<<<<<<< HEAD
     <title>ESP32-C6 Router</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #f0f0f0; }
         .container { max-width: 800px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-=======
-    <title>ESP32-C6 WiFi配置</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f0f0f0; }
-        .container { max-width: 400px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
->>>>>>> ccfc7efee610ce0d4065fa4704320b3c64f0ff09
         h2 { color: #333; text-align: center; margin-bottom: 20px; }
         input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
         button { background-color: #4CAF50; color: white; padding: 12px; border: none; width: 100%; border-radius: 4px; cursor: pointer; font-size: 16px; }
         button:hover { background-color: #45a049; }
         .status { margin-top: 20px; padding: 10px; background-color: #f8f8f8; border-radius: 4px; }
-<<<<<<< HEAD
         .tabs { display: flex; margin-bottom: 20px; }
         .tab { padding: 10px 20px; cursor: pointer; border: 1px solid #ddd; background: #f8f8f8; }
         .tab.active { background: #4CAF50; color: white; border-color: #4CAF50; }
@@ -53,13 +40,10 @@ const char* html_page = R"(
         .task-list { margin-top: 10px; }
         .task-item { padding: 10px; background: #f8f8f8; margin: 5px 0; border-radius: 4px; }
         #refreshBtn { background-color: #2196F3; margin-top: 10px; }
-=======
->>>>>>> ccfc7efee610ce0d4065fa4704320b3c64f0ff09
     </style>
 </head>
 <body>
     <div class='container'>
-<<<<<<< HEAD
         <h2>ESP32-C6 Router</h2>
         <div class="tabs">
             <div class="tab active" onclick="showTab('wifiConfig')">WiFi Config</div>
@@ -140,25 +124,11 @@ const char* html_page = R"(
 </body>
 </html>
 )rawliteral";
-=======
-        <h2>ESP32-C6 WiFi配置</h2>
-        <form action='/save' method='POST'>
-            <input type='text' name='ssid' placeholder='WiFi名称' required>
-            <input type='password' name='password' placeholder='WiFi密码' required>
-            <button type='submit'>保存配置</button>
-        </form>
-        <div class='status' id='status'></div>
-    </div>
-</body>
-</html>
-)";
->>>>>>> ccfc7efee610ce0d4065fa4704320b3c64f0ff09
 
 void handleRoot() {
     server.send(200, "text/html", html_page);
 }
 
-<<<<<<< HEAD
 void handleSystemInfo() {
     // 获取系统信息
     uint32_t freeHeap = esp_get_free_heap_size();
@@ -232,15 +202,12 @@ void handleTaskInfo() {
     server.send(200, "application/json", json);
 }
 
-=======
->>>>>>> ccfc7efee610ce0d4065fa4704320b3c64f0ff09
 void handleSave() {
     String ssid = server.arg("ssid");
     String password = server.arg("password");
     
     if (ssid.length() > 0) {
         saveWiFiConfig(ssid.c_str(), password.c_str());
-<<<<<<< HEAD
         server.send(200, "text/plain", "Configuration saved, device will restart...");
         printf("Received new WiFi config: SSID=%s\n", ssid.c_str());
         delay(2000);
@@ -248,37 +215,20 @@ void handleSave() {
     } else {
         server.send(400, "text/plain", "Invalid configuration");
         printf("Received invalid WiFi config\n");
-=======
-        server.send(200, "text/plain", "配置已保存，设备将重启...");
-        printf("收到新的WiFi配置：SSID=%s\n", ssid.c_str());
-        delay(2000);
-        ESP.restart();
-    } else {
-        server.send(400, "text/plain", "配置无效");
-        printf("收到无效的WiFi配置\n");
->>>>>>> ccfc7efee610ce0d4065fa4704320b3c64f0ff09
     }
 }
 
 void initWebServer() {
     server.on("/", handleRoot);
     server.on("/save", HTTP_POST, handleSave);
-<<<<<<< HEAD
     server.on("/system-info", handleSystemInfo);
     server.on("/task-info", handleTaskInfo);
     printf("Web server routes configured\n");
-=======
-    printf("Web服务器路由配置完成\n");
->>>>>>> ccfc7efee610ce0d4065fa4704320b3c64f0ff09
 }
 
 void startWebServerTask(void* parameter) {
     server.begin();
-<<<<<<< HEAD
     printf("Web server started\n");
-=======
-    printf("Web服务器已启动\n");
->>>>>>> ccfc7efee610ce0d4065fa4704320b3c64f0ff09
     
     while(1) {
         server.handleClient();

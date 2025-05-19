@@ -1,5 +1,4 @@
 #include "wifi_manager.h"
-<<<<<<< HEAD
 #include "esp_wifi.h"
 #include "esp_mac.h"
 #include "esp_netif.h"
@@ -96,20 +95,6 @@ void startWiFiTask(void* parameter) {
                 strcpy((char*)sta_config.sta.password, wifiConfig.password);
                 esp_wifi_set_config(WIFI_IF_STA, &sta_config);
                 
-=======
-
-TaskHandle_t wifiTaskHandle = NULL;
-WifiConfig wifiConfig;
-
-void initWiFiManager() {
-    wifiConfig.configured = false;
-}
-
-void startWiFiTask(void* parameter) {
-    while(1) {
-        if (wifiConfig.configured) {
-            if (WiFi.status() != WL_CONNECTED) {
->>>>>>> ccfc7efee610ce0d4065fa4704320b3c64f0ff09
                 WiFi.begin(wifiConfig.ssid, wifiConfig.password);
                 printf("正在连接WiFi...\n");
                 int attempts = 0;
@@ -122,11 +107,8 @@ void startWiFiTask(void* parameter) {
                 if (WiFi.status() == WL_CONNECTED) {
                     printf("\nWiFi连接成功！\n");
                     printf("IP地址: %s\n", WiFi.localIP().toString().c_str());
-<<<<<<< HEAD
                     // 连接成功后设置AP和启用NAT
                     setupAP();
-=======
->>>>>>> ccfc7efee610ce0d4065fa4704320b3c64f0ff09
                 } else {
                     printf("\nWiFi连接失败，请检查配置\n");
                 }
@@ -149,14 +131,4 @@ IPAddress getLocalIP() {
 
 IPAddress getAPIP() {
     return WiFi.softAPIP();
-<<<<<<< HEAD
-=======
-}
-
-void setupAP() {
-    WiFi.mode(WIFI_AP);
-    WiFi.softAP("ESP32-C6-Config", "12345678");
-    printf("AP模式已启动\n");
-    printf("AP IP地址: %s\n", WiFi.softAPIP().toString().c_str());
->>>>>>> ccfc7efee610ce0d4065fa4704320b3c64f0ff09
 } 
