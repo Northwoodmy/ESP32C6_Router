@@ -1,0 +1,26 @@
+{
+    "name": "ESP32-C6-Router",
+    "version": "1.0.0",
+    "description": "ESP32-C6 based WiFi router with web management interface",
+    "keywords": "esp32, esp32-c6, router, wifi, web-server",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/yourusername/ESP32-C6-Router.git"
+    },
+    "authors": [
+        {
+            "name": "northwoodmy",
+            "email": "northwoodmy@163.com",
+            "maintainer": true
+        }
+    ],
+    "license": "MIT",
+    "dependencies": {
+        "esp32": "^2.0.0",
+        "WebServer": "^2.0.0",
+        "ArduinoJson": "^6.21.0",
+        "AsyncTCP": "^1.1.1"
+    },
+    "frameworks": "arduino",
+    "platforms": "espressif32"
+} 
