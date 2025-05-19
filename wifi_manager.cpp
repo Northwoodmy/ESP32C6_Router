@@ -2,28 +2,48 @@
 #include "esp_wifi.h"
 #include "esp_mac.h"
 #include "esp_netif.h"
+#include "dhcpserver/dhcpserver.h"
 
 TaskHandle_t wifiTaskHandle = NULL;
 WifiConfig wifiConfig;
 esp_netif_t* ap_netif = NULL;
 esp_netif_t* sta_netif = NULL;
 
-// IP配置
-const IPAddress local_IP(192, 168, 4, 1);
-const IPAddress gateway(192, 168, 4, 1);
-const IPAddress subnet(255, 255, 255, 0);
+// DHCP服务器配置
+const IPAddress ap_local_ip(192, 168, 4, 1);
+const IPAddress ap_gateway(192, 168, 4, 1);
+const IPAddress ap_subnet(255, 255, 255, 0);
+const IPAddress dhcp_pool_start(192, 168, 4, 100);  // DHCP起始地址
+const IPAddress dhcp_pool_end(192, 168, 4, 150);    // DHCP结束地址
+
+void configureDHCP() {
+    // 配置DHCP服务器
+    dhcps_lease_t lease;
+    lease.enable = true;
+    lease.start_ip.addr = static_cast<uint32_t>(dhcp_pool_start);
+    lease.end_ip.addr = static_cast<uint32_t>(dhcp_pool_end);
+    
+    // 停止DHCP服务器，设置配置，然后重启
+    esp_netif_dhcps_stop(ap_netif);
+    esp_netif_dhcps_option(ap_netif, ESP_NETIF_OP_SET, ESP_NETIF_REQUESTED_IP_ADDRESS, &lease, sizeof(dhcps_lease_t));
+    esp_netif_dhcps_start(ap_netif);
+    
+    printf("DHCP服务器配置完成，IP范围: %s - %s\n", 
+           dhcp_pool_start.toString().c_str(), 
+           dhcp_pool_end.toString().c_str());
+}
 
 void configureIP() {
     // 配置AP的IP地址
     esp_netif_ip_info_t ip_info = {};
-    ip_info.ip.addr = static_cast<uint32_t>(local_IP);
-    ip_info.gw.addr = static_cast<uint32_t>(gateway);
-    ip_info.netmask.addr = static_cast<uint32_t>(subnet);
+    ip_info.ip.addr = static_cast<uint32_t>(ap_local_ip);
+    ip_info.gw.addr = static_cast<uint32_t>(ap_gateway);
+    ip_info.netmask.addr = static_cast<uint32_t>(ap_subnet);
     
-    // 停止DHCP服务器，设置IP，然后重启DHCP服务器
-    esp_netif_dhcps_stop(ap_netif);
     esp_netif_set_ip_info(ap_netif, &ip_info);
-    esp_netif_dhcps_start(ap_netif);
+    
+    // 配置DHCP服务器
+    configureDHCP();
     
     // 设置DNS服务器
     esp_netif_dns_info_t dns_info = {};
@@ -70,7 +90,8 @@ void setupAP() {
     ap_config.ap.ssid_len = strlen("ESP32-C6-Router");
     ap_config.ap.channel = 1;
     ap_config.ap.authmode = WIFI_AUTH_WPA2_PSK;
-    ap_config.ap.max_connection = 5;
+    ap_config.ap.max_connection = 10;  // 增加最大连接数
+    ap_config.ap.beacon_interval = 100;  // 设置信标间隔
     
     esp_wifi_set_config(WIFI_IF_AP, &ap_config);
     
@@ -80,6 +101,7 @@ void setupAP() {
     
     printf("AP模式已启动\n");
     printf("AP IP地址: %s\n", WiFi.softAPIP().toString().c_str());
+    printf("最大连接数: %d\n", ap_config.ap.max_connection);
 }
 
 void startWiFiTask(void* parameter) {

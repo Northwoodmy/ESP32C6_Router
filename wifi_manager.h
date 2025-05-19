@@ -17,6 +17,13 @@ struct WifiConfig {
     bool configured;
 };
 
+// DHCP配置变量声明
+extern const IPAddress ap_local_ip;
+extern const IPAddress ap_gateway;
+extern const IPAddress ap_subnet;
+extern const IPAddress dhcp_pool_start;
+extern const IPAddress dhcp_pool_end;
+
 // 函数声明
 void initWiFiManager();
 void startWiFiTask(void* parameter);

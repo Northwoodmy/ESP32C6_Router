@@ -166,6 +166,7 @@ const char* html_page = R"rawliteral(
                                 <div>IP地址：${client.ip}</div>
                                 <div>MAC地址：${client.mac}</div>
                                 <div>信号强度：${client.rssi}</div>
+                                <div>DHCP状态：${client.dhcp_status}</div>
                             </div>
                         `;
                         clientList.appendChild(clientItem);
@@ -318,9 +319,12 @@ void handleWiFiInfo() {
 
 void handleClientInfo() {
     wifi_sta_list_t sta_list;
-    wifi_sta_info_t sta_info[8];
     memset(&sta_list, 0, sizeof(wifi_sta_list_t));
     esp_wifi_ap_get_sta_list(&sta_list);
+    
+    // 获取DHCP状态
+    esp_netif_dhcp_status_t status;
+    esp_netif_dhcps_get_status(ap_netif, &status);
     
     String json = "{\"clients\":[";
     
@@ -335,22 +339,23 @@ void handleClientInfo() {
                 sta_list.sta[i].mac[2], sta_list.sta[i].mac[3],
                 sta_list.sta[i].mac[4], sta_list.sta[i].mac[5]);
         
-        // 获取IP地址
-        esp_netif_ip_info_t ip_info;
-        esp_netif_get_ip_info(ap_netif, &ip_info);
+        // 计算IP地址
+        uint32_t base_ip = static_cast<uint32_t>(ap_local_ip);
+        uint32_t offset = 100 + i; // 从.100开始分配
+        uint32_t client_ip = (base_ip & 0xFFFFFF00) | offset;
         
-        uint8_t last_octet = 100 + i; // 简单分配IP地址
         char ip[16];
         sprintf(ip, "%d.%d.%d.%d",
-                ip_info.ip.addr & 0xff,
-                (ip_info.ip.addr >> 8) & 0xff,
-                (ip_info.ip.addr >> 16) & 0xff,
-                last_octet);
+                client_ip & 0xff,
+                (client_ip >> 8) & 0xff,
+                (client_ip >> 16) & 0xff,
+                (client_ip >> 24));
         
         json += "\"mac\":\"" + String(mac) + "\",";
         json += "\"ip\":\"" + String(ip) + "\",";
         json += "\"hostname\":\"" + String("设备 ") + String(i + 1) + "\",";
-        json += "\"rssi\":\"" + String(sta_list.sta[i].rssi) + " dBm\"";
+        json += "\"rssi\":\"" + String(sta_list.sta[i].rssi) + " dBm\",";
+        json += "\"dhcp_status\":\"" + String(status == ESP_NETIF_DHCP_STARTED ? "已分配" : "未分配") + "\"";
         json += "}";
     }
     
