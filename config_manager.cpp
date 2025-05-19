@@ -67,7 +67,7 @@ bool loadServerConfig() {
     preferences.begin("server", true);
     String saved_ip = preferences.getString("ip", "");
     uint16_t saved_port = preferences.getUInt("port", 80);
-    String saved_path = preferences.getString("path", "");
+    String saved_path = preferences.getString("path", "/metrics");
     serverConfig.configured = preferences.getBool("configured", false);
     preferences.end();
     
@@ -77,6 +77,8 @@ bool loadServerConfig() {
         strncpy(serverConfig.path, saved_path.c_str(), sizeof(serverConfig.path));
         printf("已从NVS加载服务器配置\n");
         return true;
+    } else {
+        strncpy(serverConfig.path, "/metrics", sizeof(serverConfig.path));
     }
     printf("未找到已保存的服务器配置\n");
     return false;

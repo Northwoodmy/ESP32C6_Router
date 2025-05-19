@@ -121,6 +121,24 @@ const char* html_page = R"rawliteral(
             margin: 10px 0;
             line-height: 1.6;
         }
+        .action-button {
+            background-color: #2196F3;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .action-button:hover {
+            background-color: #1976D2;
+        }
+        .success-message {
+            color: #4CAF50;
+            margin-top: 10px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -215,7 +233,7 @@ const char* html_page = R"rawliteral(
             <form id="serverConfigForm" onsubmit="saveServerConfig(event)">
                 <input type="text" name="ip" placeholder="服务器IP地址" required>
                 <input type="number" name="port" placeholder="服务器端口" value="80" required>
-                <input type="text" name="path" placeholder="服务器路径（选填）">
+                <input type="text" name="path" placeholder="服务器路径" value="/metrics">
                 <button type="submit">保存服务器配置</button>
             </form>
         </div>
@@ -247,6 +265,32 @@ const char* html_page = R"rawliteral(
                     document.getElementById('connectedWifi').textContent = data.sta_ssid || '-';
                     document.getElementById('deviceIP').textContent = data.sta_ip || '-';
                 });
+        }
+        
+        function setAsServer(ip) {
+            // 切换到服务器配置标签页
+            showTab('serverConfig');
+            
+            // 填充表单
+            const form = document.getElementById('serverConfigForm');
+            form.querySelector('input[name="ip"]').value = ip;
+            form.querySelector('input[name="port"]').value = "80";
+            form.querySelector('input[name="path"]').value = "/metrics";
+            
+            // 自动保存配置
+            const formData = new FormData(form);
+            fetch('/server-config', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(result => {
+                updateServerConfig();
+                alert('已成功将设备设置为服务器');
+            })
+            .catch(error => {
+                alert('设置失败：' + error);
+            });
         }
         
         function refreshClientInfo() {
@@ -289,6 +333,7 @@ const char* html_page = R"rawliteral(
                                     <span>连接时长</span>
                                     <span>${client.connected_time || '0'} 分钟</span>
                                 </div>
+                                <button class="action-button" onclick="setAsServer('${client.ip}')">设为服务器</button>
                             </div>
                         `;
                         clientList.appendChild(clientItem);
