@@ -38,7 +38,45 @@ const char* html_page = R"rawliteral(
         .tab-content { display: none; animation: fadeIn 0.3s; }
         .tab-content.active { display: block; }
         .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0; }
-        .info-item { padding: 15px; background: #f8f8f8; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .info-item { 
+            padding: 15px; 
+            background: #f8f8f8; 
+            border-radius: 4px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .info-item .title {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .info-item .value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .progress-bar .bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            transition: width 0.3s ease;
+        }
+        .progress-bar.memory .bar {
+            background: linear-gradient(90deg, #2196F3, #1976D2);
+        }
+        .progress-bar.uptime .bar {
+            background: linear-gradient(90deg, #FF9800, #F57C00);
+        }
+        .progress-bar.tasks .bar {
+            background: linear-gradient(90deg, #9C27B0, #7B1FA2);
+        }
         .task-list { margin-top: 15px; }
         .task-item { padding: 15px; background: #f8f8f8; margin: 8px 0; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         #refreshBtn { background-color: #2196F3; margin-top: 15px; }
@@ -185,20 +223,29 @@ const char* html_page = R"rawliteral(
         <div id="systemInfo" class="tab-content">
             <div class="info-grid">
                 <div class="info-item">
-                    <div>CPU 使用率</div>
-                    <div id="cpuUsage">-</div>
+                    <div class="title">CPU 使用率</div>
+                    <div class="value" id="cpuUsage">-</div>
+                    <div class="progress-bar">
+                        <div class="bar" id="cpuBar" style="width: 0%"></div>
+                    </div>
                 </div>
                 <div class="info-item">
-                    <div>可用内存</div>
-                    <div id="freeHeap">-</div>
+                    <div class="title">可用内存</div>
+                    <div class="value" id="freeHeap">-</div>
+                    <div class="progress-bar memory">
+                        <div class="bar" id="memoryBar" style="width: 0%"></div>
+                    </div>
                 </div>
                 <div class="info-item">
-                    <div>运行时间</div>
-                    <div id="uptime">-</div>
+                    <div class="title">活动任务数</div>
+                    <div class="value" id="taskCount">-</div>
+                    <div class="progress-bar tasks">
+                        <div class="bar" id="taskBar" style="width: 0%"></div>
+                    </div>
                 </div>
                 <div class="info-item">
-                    <div>活动任务数</div>
-                    <div id="taskCount">-</div>
+                    <div class="title">运行时间</div>
+                    <div class="value" id="uptime" style="margin-bottom: 0">-</div>
                 </div>
             </div>
             <button id="refreshBtn" onclick="refreshInfo()">刷新系统信息</button>
@@ -347,10 +394,24 @@ const char* html_page = R"rawliteral(
             fetch('/system-info')
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('cpuUsage').textContent = data.cpuUsage + '%';
-                    document.getElementById('freeHeap').textContent = formatBytes(data.freeHeap);
+                    // 更新CPU使用率
+                    document.getElementById('cpuUsage').textContent = data.cpuUsage.toFixed(1) + '%';
+                    document.getElementById('cpuBar').style.width = data.cpuUsage + '%';
+                    
+                    // 更新内存使用情况
+                    const totalHeap = 512 * 1024; // 假设总内存为512KB
+                    const memoryUsage = ((totalHeap - data.freeHeap) / totalHeap * 100).toFixed(1);
+                    document.getElementById('freeHeap').textContent = formatBytes(data.freeHeap) + ` (${memoryUsage}% 已用)`;
+                    document.getElementById('memoryBar').style.width = memoryUsage + '%';
+                    
+                    // 更新运行时间
                     document.getElementById('uptime').textContent = formatUptime(data.uptime);
-                    document.getElementById('taskCount').textContent = data.taskCount;
+                    
+                    // 更新任务数
+                    const maxTasks = 20; // 假设最大任务数为20
+                    const taskPercentage = Math.min(100, (data.taskCount / maxTasks * 100)).toFixed(1);
+                    document.getElementById('taskCount').textContent = data.taskCount + ` (${taskPercentage}%)`;
+                    document.getElementById('taskBar').style.width = taskPercentage + '%';
                 });
             resetSystemTimer();
         }
