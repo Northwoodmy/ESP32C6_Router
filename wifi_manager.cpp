@@ -2,7 +2,27 @@
 #include "esp_wifi.h"
 #include "esp_mac.h"
 #include "esp_netif.h"
-#include "dhcpserver/dhcpserver.h"
+#include "esp_wifi_types.h"
+#include "esp_private/wifi.h"
+#include "lwip/ip4.h"
+#include "lwip/ip4_frag.h"
+#include "lwip/dns.h"
+#include "lwip/netif.h"
+#include "lwip/ip_addr.h"
+#include "lwip/ip.h"
+#include "lwip/opt.h"
+#include "lwip/err.h"
+#include "lwip/inet.h"
+#include "esp_netif_net_stack.h"
+#include "dhcpserver/dhcpserver_options.h"
+
+#define CONFIG_LWIP_IP4_NAPT 1
+#define IP_NAPT_MAX 512
+#define IP_PORTMAP_MAX 32
+
+// DHCP选项定义
+#define DHCP_OPTION_DNS 6
+#define DHCP_OPTION_ROUTER 3
 
 TaskHandle_t wifiTaskHandle = NULL;
 WifiConfig wifiConfig;
@@ -16,6 +36,24 @@ const IPAddress ap_subnet(255, 255, 255, 0);
 const IPAddress dhcp_pool_start(192, 168, 4, 100);  // DHCP起始地址
 const IPAddress dhcp_pool_end(192, 168, 4, 150);    // DHCP结束地址
 
+bool setupNAT() {
+    // 启用DNS转发
+    dns_init();
+    
+    // 配置DNS服务器
+    esp_netif_dns_info_t dns_info = {};
+    dns_info.ip.u_addr.ip4.addr = htonl(0x08080808); // 8.8.8.8
+    dns_info.ip.type = ESP_IPADDR_TYPE_V4;
+    
+    if (esp_netif_set_dns_info(ap_netif, ESP_NETIF_DNS_MAIN, &dns_info) != ESP_OK) {
+        printf("DNS配置失败\n");
+        return false;
+    }
+    
+    printf("NAT和DNS转发功能已启用\n");
+    return true;
+}
+
 void configureDHCP() {
     // 配置DHCP服务器
     dhcps_lease_t lease;
@@ -25,12 +63,28 @@ void configureDHCP() {
     
     // 停止DHCP服务器，设置配置，然后重启
     esp_netif_dhcps_stop(ap_netif);
+    
+    // 设置IP地址范围
     esp_netif_dhcps_option(ap_netif, ESP_NETIF_OP_SET, ESP_NETIF_REQUESTED_IP_ADDRESS, &lease, sizeof(dhcps_lease_t));
+    
+    // 设置IP地址租约时间（默认7200秒）
+    uint32_t lease_time = 7200;
+    esp_netif_dhcps_option(ap_netif, ESP_NETIF_OP_SET, ESP_NETIF_IP_ADDRESS_LEASE_TIME, &lease_time, sizeof(lease_time));
+    
+    // 设置网络参数
+    esp_netif_ip_info_t ip_info;
+    ip_info.ip.addr = static_cast<uint32_t>(ap_local_ip);
+    ip_info.gw.addr = static_cast<uint32_t>(ap_gateway);
+    ip_info.netmask.addr = static_cast<uint32_t>(ap_subnet);
+    esp_netif_set_ip_info(ap_netif, &ip_info);
+    
+    // 启动DHCP服务器
     esp_netif_dhcps_start(ap_netif);
     
     printf("DHCP服务器配置完成，IP范围: %s - %s\n", 
            dhcp_pool_start.toString().c_str(), 
            dhcp_pool_end.toString().c_str());
+    printf("IP地址租约时间: %d秒\n", lease_time);
 }
 
 void configureIP() {
@@ -45,19 +99,55 @@ void configureIP() {
     // 配置DHCP服务器
     configureDHCP();
     
-    // 设置DNS服务器
-    esp_netif_dns_info_t dns_info = {};
-    dns_info.ip.u_addr.ip4.addr = htonl(0x08080808); // 8.8.8.8
-    dns_info.ip.type = ESP_IPADDR_TYPE_V4;
-    esp_netif_set_dns_info(ap_netif, ESP_NETIF_DNS_MAIN, &dns_info);
-    
     printf("IP配置完成\n");
 }
 
 void enableNAT() {
-    // 启用IP转发
+    // 禁用WiFi省电模式以提高性能
     esp_wifi_set_ps(WIFI_PS_NONE);
-    printf("IP转发已启用\n");
+    
+    if (WiFi.status() == WL_CONNECTED) {
+        // 获取STA接口的IP信息
+        esp_netif_ip_info_t ip_info;
+        esp_netif_get_ip_info(sta_netif, &ip_info);
+        
+        // 配置路由
+        esp_netif_ip_info_t ap_ip_info;
+        esp_netif_get_ip_info(ap_netif, &ap_ip_info);
+        
+        // 设置默认路由
+        esp_netif_set_default_netif(sta_netif);
+        
+        printf("NAT路由功能已启用\n");
+        printf("AP网段: %s\n", ap_local_ip.toString().c_str());
+        printf("STA IP: %s\n", WiFi.localIP().toString().c_str());
+        printf("默认网关: %s\n", WiFi.gatewayIP().toString().c_str());
+    } else {
+        printf("NAT路由未启用：STA未连接\n");
+    }
+}
+
+void checkAndRestartNetworking() {
+    static uint32_t lastCheck = 0;
+    static uint8_t failCount = 0;
+    
+    if (millis() - lastCheck > 30000) {  // 每30秒检查一次
+        lastCheck = millis();
+        
+        if (WiFi.status() != WL_CONNECTED) {
+            failCount++;
+            printf("检测到网络断开，尝试重连...\n");
+            
+            if (failCount >= 3) {  // 连续失败3次后重启网络
+                printf("网络多次连接失败，重启网络服务...\n");
+                WiFi.disconnect(true);
+                delay(1000);
+                ESP.restart();
+            }
+        } else {
+            failCount = 0;
+        }
+    }
 }
 
 void initWiFiManager() {
@@ -78,6 +168,9 @@ void initWiFiManager() {
     // 设置WiFi模式为AP+STA
     esp_wifi_set_mode(WIFI_MODE_APSTA);
     
+    // 初始化NAT功能
+    setupNAT();
+    
     wifiConfig.configured = false;
     printf("WiFi管理器初始化完成\n");
 }
@@ -97,7 +190,6 @@ void setupAP() {
     
     // 配置IP和启用NAT
     configureIP();
-    enableNAT();
     
     printf("AP模式已启动\n");
     printf("AP IP地址: %s\n", WiFi.softAPIP().toString().c_str());
@@ -129,15 +221,22 @@ void startWiFiTask(void* parameter) {
                 if (WiFi.status() == WL_CONNECTED) {
                     printf("\nWiFi连接成功！\n");
                     printf("IP地址: %s\n", WiFi.localIP().toString().c_str());
-                    // 连接成功后设置AP和启用NAT
+                    
+                    // 先设置AP模式
                     setupAP();
+                    // 然后启用NAT路由
+                    enableNAT();
                 } else {
                     printf("\nWiFi连接失败，请检查配置\n");
+                    // 如果连接失败，仍然启动AP模式
+                    setupAP();
                 }
             }
+            
+            // 检查网络状态
+            checkAndRestartNetworking();
         } else {
             setupAP();
-            vTaskDelete(NULL);
         }
         vTaskDelay(pdMS_TO_TICKS(5000));
     }

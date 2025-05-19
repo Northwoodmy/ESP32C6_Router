@@ -8,6 +8,15 @@
 #include <esp_wifi.h>
 #include <esp_netif.h>
 #include <lwip/dns.h>
+#include <lwip/ip4.h>
+#include <lwip/ip4_frag.h>
+#include <lwip/netif.h>
+#include <lwip/ip_addr.h>
+#include <lwip/ip.h>
+#include <lwip/opt.h>
+#include <lwip/err.h>
+#include <lwip/inet.h>
+#include <lwip/ip4_napt.h>
 #include <dhcpserver/dhcpserver.h>
 
 // WiFi配置结构体
@@ -33,6 +42,8 @@ IPAddress getAPIP();
 void setupAP();
 void enableNAT();
 void configureIP();
+bool setupNAT();
+void checkAndRestartNetworking();
 
 extern TaskHandle_t wifiTaskHandle;
 extern WifiConfig wifiConfig;
