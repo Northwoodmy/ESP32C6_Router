@@ -1,4 +1,5 @@
 #include "http_client.h"
+#include "wifi_manager.h"  // 添加wifi_manager.h以访问AP接口相关函数
 
 TaskHandle_t httpClientTaskHandle = NULL;
 HTTPClient http;
@@ -11,7 +12,7 @@ String getMetricsData() {
 }
 
 void fetchMetricsData() {
-    if (!serverConfig.configured || !WiFi.isConnected()) {
+    if (!serverConfig.configured || !WiFi.softAPgetStationNum()) {  // 检查是否有设备连接到AP
         return;
     }
 
@@ -21,16 +22,21 @@ void fetchMetricsData() {
     }
     lastRequestTime = currentTime;
 
-    String url = "http://" + String(serverConfig.ip) + ":" + String(serverConfig.port) + String(serverConfig.path);
+    // 配置HTTP客户端使用AP接口
+    WiFiClient wifiClient;
+    http.begin(wifiClient, "http://" + String(serverConfig.ip) + ":" + String(serverConfig.port) + String(serverConfig.path));
     
-    http.begin(url);
+    // 设置超时时间
+    http.setTimeout(2000);  // 2秒超时
+    
+    printf("正在通过AP接口访问服务器: %s\n", serverConfig.ip);
     int httpCode = http.GET();
 
     if (httpCode == HTTP_CODE_OK) {
         lastMetricsData = http.getString();
         printf("成功获取metrics数据，长度：%d\n", lastMetricsData.length());
     } else {
-        printf("获取metrics数据失败，错误码：%d\n", httpCode);
+        printf("获取metrics数据失败，错误码：%d，服务器：%s\n", httpCode, serverConfig.ip);
         lastMetricsData = "";
     }
     
