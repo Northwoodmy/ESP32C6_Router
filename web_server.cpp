@@ -14,6 +14,8 @@ void handleSystemInfo();
 void handleTaskInfo();
 void handleWiFiInfo();
 void handleClientInfo();
+void handleServerConfig();
+void handleGetServerConfig();
 
 // HTML页面
 const char* html_page = R"rawliteral(
@@ -108,6 +110,17 @@ const char* html_page = R"rawliteral(
             margin-top: 10px;
             font-size: 0.9em;
         }
+        .server-config {
+            background: #f8f8f8;
+            padding: 20px;
+            border-radius: 4px;
+            margin-bottom: 25px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .server-info {
+            margin: 10px 0;
+            line-height: 1.6;
+        }
     </style>
 </head>
 <body>
@@ -118,6 +131,7 @@ const char* html_page = R"rawliteral(
             <div class="tab" onclick="showTab('systemInfo')">系统状态</div>
             <div class="tab" onclick="showTab('taskInfo')">任务管理</div>
             <div class="tab" onclick="showTab('clientInfo')">已连接设备</div>
+            <div class="tab" onclick="showTab('serverConfig')">服务器配置</div>
         </div>
         
         <div id="wifiConfig" class="tab-content active">
@@ -187,6 +201,23 @@ const char* html_page = R"rawliteral(
             </div>
             <button id="refreshClientBtn" onclick="refreshClientInfo()">刷新设备列表</button>
             <div class="refresh-timer">自动刷新倒计时：<span id="clientRefreshTimer">10</span>秒</div>
+        </div>
+
+        <div id="serverConfig" class="tab-content">
+            <div class="server-config">
+                <div class="server-info">
+                    <div>当前服务器配置状态：<span id="serverStatus">未配置</span></div>
+                    <div>服务器地址：<span id="currentServerIP">-</span></div>
+                    <div>服务器端口：<span id="currentServerPort">-</span></div>
+                    <div>服务器路径：<span id="currentServerPath">-</span></div>
+                </div>
+            </div>
+            <form id="serverConfigForm" onsubmit="saveServerConfig(event)">
+                <input type="text" name="ip" placeholder="服务器IP地址" required>
+                <input type="number" name="port" placeholder="服务器端口" value="80" required>
+                <input type="text" name="path" placeholder="服务器路径（选填）">
+                <button type="submit">保存服务器配置</button>
+            </form>
         </div>
     </div>
     <script>
@@ -372,12 +403,43 @@ const char* html_page = R"rawliteral(
             }, 1000);
         }
 
+        function updateServerConfig() {
+            fetch('/get-server-config')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('serverStatus').textContent = data.configured ? '已配置' : '未配置';
+                    document.getElementById('currentServerIP').textContent = data.ip || '-';
+                    document.getElementById('currentServerPort').textContent = data.port || '-';
+                    document.getElementById('currentServerPath').textContent = data.path || '-';
+                });
+        }
+
+        function saveServerConfig(event) {
+            event.preventDefault();
+            const form = document.getElementById('serverConfigForm');
+            const formData = new FormData(form);
+            
+            fetch('/server-config', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(result => {
+                alert(result);
+                updateServerConfig();
+            })
+            .catch(error => {
+                alert('保存失败：' + error);
+            });
+        }
+
         // 初始化
         document.addEventListener('DOMContentLoaded', () => {
             updateWiFiInfo();
             refreshSystemInfo();
             refreshTaskInfo();
             refreshClientInfo();
+            updateServerConfig();
             startTimers();
         });
     </script>
@@ -535,6 +597,31 @@ void handleClientInfo() {
     server.send(200, "application/json", json);
 }
 
+void handleServerConfig() {
+    String ip = server.arg("ip");
+    String port = server.arg("port");
+    String path = server.arg("path");
+    
+    if (ip.length() > 0) {
+        saveServerConfig(ip.c_str(), port.toInt(), path.c_str());
+        server.send(200, "text/plain", "服务器配置已保存");
+        printf("收到新的服务器配置: IP=%s, Port=%s\n", ip.c_str(), port.c_str());
+    } else {
+        server.send(400, "text/plain", "无效的配置");
+        printf("收到无效的服务器配置\n");
+    }
+}
+
+void handleGetServerConfig() {
+    String json = "{";
+    json += "\"ip\":\"" + String(serverConfig.ip) + "\",";
+    json += "\"port\":" + String(serverConfig.port) + ",";
+    json += "\"path\":\"" + String(serverConfig.path) + "\",";
+    json += "\"configured\":" + String(serverConfig.configured ? "true" : "false");
+    json += "}";
+    server.send(200, "application/json", json);
+}
+
 void initWebServer() {
     server.on("/", handleRoot);
     server.on("/save", HTTP_POST, handleSave);
@@ -542,6 +629,8 @@ void initWebServer() {
     server.on("/task-info", handleTaskInfo);
     server.on("/wifi-info", handleWiFiInfo);
     server.on("/client-info", handleClientInfo);
+    server.on("/server-config", HTTP_POST, handleServerConfig);
+    server.on("/get-server-config", handleGetServerConfig);
     printf("Web server routes configured\n");
 }
 
