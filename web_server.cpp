@@ -1,11 +1,8 @@
 #include "web_server.h"
 #include "wifi_manager.h"
 #include "config_manager.h"
-<<<<<<< HEAD
 #include <esp_system.h>
 #include <esp_heap_caps.h>
-=======
->>>>>>> ccfc7efee610ce0d4065fa4704320b3c64f0ff09
 
 TaskHandle_t webServerTaskHandle = NULL;
 WebServer server(80);
