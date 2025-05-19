@@ -251,6 +251,10 @@ const char* html_page = R"rawliteral(
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             document.getElementById(tabName).classList.add('active');
             document.querySelector(`[onclick*='${tabName}']`).classList.add('active');
+            
+            if (tabName === 'metricsData') {
+                updateMetricsData();
+            }
         }
         
         function updateWiFiInfo() {
@@ -268,16 +272,13 @@ const char* html_page = R"rawliteral(
         }
         
         function setAsServer(ip) {
-            // 切换到服务器配置标签页
             showTab('serverConfig');
             
-            // 填充表单
             const form = document.getElementById('serverConfigForm');
             form.querySelector('input[name="ip"]').value = ip;
             form.querySelector('input[name="port"]').value = "80";
             form.querySelector('input[name="path"]').value = "/metrics";
             
-            // 自动保存配置
             const formData = new FormData(form);
             fetch('/server-config', {
                 method: 'POST',
@@ -478,14 +479,32 @@ const char* html_page = R"rawliteral(
             });
         }
 
-        // 初始化
+        function updateMetricsData() {
+            fetch('/metrics-data')
+                .then(response => response.text())
+                .then(data => {
+                    const content = document.getElementById('metricsContent');
+                    content.textContent = data || '暂无数据';
+                })
+                .catch(error => {
+                    console.error('获取数据失败:', error);
+                });
+        }
+
+        function startMetricsTimer() {
+            clearInterval(metricsRefreshInterval);
+            metricsRefreshInterval = setInterval(updateMetricsData, 500);
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             updateWiFiInfo();
             refreshSystemInfo();
             refreshTaskInfo();
             refreshClientInfo();
             updateServerConfig();
+            updateMetricsData();
             startTimers();
+            startMetricsTimer();
         });
     </script>
 </body>
@@ -497,17 +516,14 @@ void handleRoot() {
 }
 
 void handleSystemInfo() {
-    // 获取系统信息
     uint32_t freeHeap = esp_get_free_heap_size();
-    uint32_t uptime = esp_timer_get_time() / 1000000; // 转换为秒
+    uint32_t uptime = esp_timer_get_time() / 1000000;
     
-    // 获取CPU使用率（简单估算）
     static uint32_t lastTotalTime = 0;
     static uint32_t lastIdleTime = 0;
     uint32_t totalTime = 0;
     uint32_t idleTime = 0;
     
-    // 获取所有任务的运行时间
     UBaseType_t taskCount = uxTaskGetNumberOfTasks();
     TaskStatus_t *taskStatusArray = (TaskStatus_t *)malloc(taskCount * sizeof(TaskStatus_t));
     if (taskStatusArray != NULL) {
@@ -521,7 +537,6 @@ void handleSystemInfo() {
         free(taskStatusArray);
     }
     
-    // 计算CPU使用率
     float cpuUsage = 0;
     if (lastTotalTime > 0) {
         uint32_t totalDelta = totalTime - lastTotalTime;
@@ -531,7 +546,6 @@ void handleSystemInfo() {
     lastTotalTime = totalTime;
     lastIdleTime = idleTime;
     
-    // 构建JSON响应
     String json = "{";
     json += "\"cpuUsage\":" + String(cpuUsage, 1) + ",";
     json += "\"freeHeap\":" + String(freeHeap) + ",";
@@ -601,7 +615,6 @@ void handleClientInfo() {
     memset(&sta_list, 0, sizeof(wifi_sta_list_t));
     esp_wifi_ap_get_sta_list(&sta_list);
     
-    // 获取DHCP状态
     esp_netif_dhcp_status_t status;
     esp_netif_dhcps_get_status(ap_netif, &status);
     
@@ -611,16 +624,14 @@ void handleClientInfo() {
         if(i > 0) json += ",";
         json += "{";
         
-        // MAC地址
         char mac[18];
         sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",
                 sta_list.sta[i].mac[0], sta_list.sta[i].mac[1],
                 sta_list.sta[i].mac[2], sta_list.sta[i].mac[3],
                 sta_list.sta[i].mac[4], sta_list.sta[i].mac[5]);
         
-        // 计算IP地址
         uint32_t base_ip = static_cast<uint32_t>(ap_local_ip);
-        uint32_t offset = 100 + i; // 从.100开始分配
+        uint32_t offset = 100 + i;
         uint32_t client_ip = (base_ip & 0xFFFFFF00) | offset;
         
         char ip[16];

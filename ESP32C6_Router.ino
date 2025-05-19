@@ -1,12 +1,14 @@
 #include "wifi_manager.h"
 #include "web_server.h"
 #include "config_manager.h"
+#include "http_client.h"
 
 void setup() {
     // 初始化各个模块
     initConfigManager();
     initWiFiManager();
     initWebServer();
+    initHttpClient();
     
     // 加载WiFi配置
     loadWiFiConfig();
