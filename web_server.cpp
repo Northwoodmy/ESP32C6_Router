@@ -18,7 +18,7 @@ const char* html_page = R"rawliteral(
 <html>
 <head>
     <meta charset='utf-8'>
-    <title>ESP32-C6 Router</title>
+    <title>ESP32-C6 路由器</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #f0f0f0; }
         .container { max-width: 800px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -41,34 +41,34 @@ const char* html_page = R"rawliteral(
 </head>
 <body>
     <div class='container'>
-        <h2>ESP32-C6 Router</h2>
+        <h2>ESP32-C6 路由器</h2>
         <div class="tabs">
-            <div class="tab active" onclick="showTab('wifiConfig')">WiFi Config</div>
-            <div class="tab" onclick="showTab('systemInfo')">System Info</div>
-            <div class="tab" onclick="showTab('taskInfo')">Task Info</div>
+            <div class="tab active" onclick="showTab('wifiConfig')">WiFi 配置</div>
+            <div class="tab" onclick="showTab('systemInfo')">系统信息</div>
+            <div class="tab" onclick="showTab('taskInfo')">任务信息</div>
         </div>
         
         <div id="wifiConfig" class="tab-content active">
             <form action='/save' method='POST'>
-                <input type='text' name='ssid' placeholder='WiFi SSID' required>
-                <input type='password' name='password' placeholder='WiFi Password' required>
-                <button type='submit'>Save Config</button>
+                <input type='text' name='ssid' placeholder='WiFi 名称' required>
+                <input type='password' name='password' placeholder='WiFi 密码' required>
+                <button type='submit'>保存配置</button>
             </form>
         </div>
         
         <div id="systemInfo" class="tab-content">
             <div class="info-grid">
-                <div class="info-item">CPU Usage: <span id="cpuUsage">-</span></div>
-                <div class="info-item">Free Memory: <span id="freeHeap">-</span></div>
-                <div class="info-item">Uptime: <span id="uptime">-</span></div>
-                <div class="info-item">Task Count: <span id="taskCount">-</span></div>
+                <div class="info-item">CPU 使用率: <span id="cpuUsage">-</span></div>
+                <div class="info-item">可用内存: <span id="freeHeap">-</span></div>
+                <div class="info-item">运行时间: <span id="uptime">-</span></div>
+                <div class="info-item">任务数量: <span id="taskCount">-</span></div>
             </div>
-            <button id="refreshBtn" onclick="refreshInfo()">Refresh</button>
+            <button id="refreshBtn" onclick="refreshInfo()">刷新</button>
         </div>
         
         <div id="taskInfo" class="tab-content">
             <div id="taskList" class="task-list"></div>
-            <button id="refreshBtn" onclick="refreshInfo()">Refresh</button>
+            <button id="refreshBtn" onclick="refreshInfo()">刷新</button>
         </div>
     </div>
     <script>
@@ -90,8 +90,8 @@ const char* html_page = R"rawliteral(
                 .then(function(response) { return response.json(); })
                 .then(function(data) {
                     document.getElementById('cpuUsage').textContent = data.cpuUsage + '%';
-                    document.getElementById('freeHeap').textContent = data.freeHeap + ' bytes';
-                    document.getElementById('uptime').textContent = data.uptime + ' sec';
+                    document.getElementById('freeHeap').textContent = data.freeHeap + ' 字节';
+                    document.getElementById('uptime').textContent = data.uptime + ' 秒';
                     document.getElementById('taskCount').textContent = data.taskCount;
                 });
                 
@@ -103,10 +103,10 @@ const char* html_page = R"rawliteral(
                     for(var i = 0; i < data.tasks.length; i++) {
                         var task = data.tasks[i];
                         var html = '<div class="task-item">';
-                        html += '<div>Task Name: ' + task.name + '</div>';
-                        html += '<div>Priority: ' + task.priority + '</div>';
-                        html += '<div>Stack Free: ' + task.stackHigh + ' bytes</div>';
-                        html += '<div>Core: ' + task.core + '</div>';
+                        html += '<div>任务名称: ' + task.name + '</div>';
+                        html += '<div>优先级: ' + task.priority + '</div>';
+                        html += '<div>剩余堆栈: ' + task.stackHigh + ' 字节</div>';
+                        html += '<div>运行核心: ' + task.core + '</div>';
                         html += '</div>';
                         taskList.innerHTML += html;
                     }
@@ -205,13 +205,13 @@ void handleSave() {
     
     if (ssid.length() > 0) {
         saveWiFiConfig(ssid.c_str(), password.c_str());
-        server.send(200, "text/plain", "Configuration saved, device will restart...");
-        printf("Received new WiFi config: SSID=%s\n", ssid.c_str());
+        server.send(200, "text/plain", "配置已保存，设备将重启...");
+        printf("收到新的WiFi配置: SSID=%s\n", ssid.c_str());
         delay(2000);
         ESP.restart();
     } else {
-        server.send(400, "text/plain", "Invalid configuration");
-        printf("Received invalid WiFi config\n");
+        server.send(400, "text/plain", "无效的配置");
+        printf("收到无效的WiFi配置\n");
     }
 }
 
