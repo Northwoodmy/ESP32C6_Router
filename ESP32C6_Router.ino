@@ -8,30 +8,28 @@ void setup() {
     initConfigManager();
     initWiFiManager();
     initWebServer();
-    initHttpClient();
+    //initHttpClient();
     
     // 加载WiFi配置
     loadWiFiConfig();
     
     // 创建任务
-    xTaskCreatePinnedToCore(
+    xTaskCreate(
         startWiFiTask,
         "WiFiTask",
-        4096,
+        8192,
         NULL,
         1,
-        &wifiTaskHandle,
-        0
+        &wifiTaskHandle
     );
     
-    xTaskCreatePinnedToCore(
+    xTaskCreate(
         startWebServerTask,
         "WebServerTask",
-        4096,
+        8192,
         NULL,
         1,
-        &webServerTaskHandle,
-        1
+        &webServerTaskHandle
     );
 }
 

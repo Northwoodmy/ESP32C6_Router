@@ -107,21 +107,25 @@ void enableNAT() {
     esp_wifi_set_ps(WIFI_PS_NONE);
     
     if (WiFi.status() == WL_CONNECTED) {
-        // 获取STA接口的IP信息
-        esp_netif_ip_info_t ip_info;
-        esp_netif_get_ip_info(sta_netif, &ip_info);
+        // 确保获取到网络接口句柄
+        if (ap_netif == NULL) {
+            ap_netif = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
+        }
+        if (sta_netif == NULL) {
+            sta_netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+        }
         
-        // 配置路由
-        esp_netif_ip_info_t ap_ip_info;
-        esp_netif_get_ip_info(ap_netif, &ap_ip_info);
-        
-        // 设置默认路由
-        esp_netif_set_default_netif(sta_netif);
-        
-        printf("NAT路由功能已启用\n");
-        printf("AP网段: %s\n", ap_local_ip.toString().c_str());
-        printf("STA IP: %s\n", WiFi.localIP().toString().c_str());
-        printf("默认网关: %s\n", WiFi.gatewayIP().toString().c_str());
+        if (ap_netif != NULL && sta_netif != NULL) {
+            // 设置默认路由
+            esp_netif_set_default_netif(sta_netif);
+            
+            printf("NAT路由功能已启用\n");
+            printf("AP网段: %s\n", ap_local_ip.toString().c_str());
+            printf("STA IP: %s\n", WiFi.localIP().toString().c_str());
+            printf("默认网关: %s\n", WiFi.gatewayIP().toString().c_str());
+        } else {
+            printf("NAT路由未启用：网络接口未初始化\n");
+        }
     } else {
         printf("NAT路由未启用：STA未连接\n");
     }
@@ -151,24 +155,20 @@ void checkAndRestartNetworking() {
 }
 
 void initWiFiManager() {
-    // 初始化网络接口
-    esp_netif_init();
-    
-    // 创建默认事件循环
-    esp_event_loop_create_default();
-    
-    // 创建AP和STA接口
-    ap_netif = esp_netif_create_default_wifi_ap();
-    sta_netif = esp_netif_create_default_wifi_sta();
-    
     // 初始化WiFi
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    esp_wifi_init(&cfg);
+    WiFi.mode(WIFI_MODE_APSTA);
     
-    // 设置WiFi模式为AP+STA
-    esp_wifi_set_mode(WIFI_MODE_APSTA);
+    // 获取网络接口引用
+    ap_netif = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
+    sta_netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
     
-    // 初始化NAT功能
+    // 配置AP
+    WiFi.softAP("ESP32-C6-Router", "12345678");
+    
+    // 配置IP地址
+    WiFi.softAPConfig(ap_local_ip, ap_gateway, ap_subnet);
+    
+    // 启用DNS和NAT功能
     setupNAT();
     
     wifiConfig.configured = false;
@@ -177,38 +177,24 @@ void initWiFiManager() {
 
 void setupAP() {
     // 配置AP
-    wifi_config_t ap_config = {};
-    strcpy((char*)ap_config.ap.ssid, "ESP32-C6-Router");
-    strcpy((char*)ap_config.ap.password, "12345678");
-    ap_config.ap.ssid_len = strlen("ESP32-C6-Router");
-    ap_config.ap.channel = 1;
-    ap_config.ap.authmode = WIFI_AUTH_WPA2_PSK;
-    ap_config.ap.max_connection = 10;  // 增加最大连接数
-    ap_config.ap.beacon_interval = 100;  // 设置信标间隔
+    WiFi.softAP("ESP32-C6-Router", "12345678", 1, false, 10);
     
-    esp_wifi_set_config(WIFI_IF_AP, &ap_config);
+    // 配置IP地址
+    WiFi.softAPConfig(ap_local_ip, ap_gateway, ap_subnet);
     
-    // 配置IP和启用NAT
-    configureIP();
+    // 配置DHCP
+    configureDHCP();
     
     printf("AP模式已启动\n");
     printf("AP IP地址: %s\n", WiFi.softAPIP().toString().c_str());
-    printf("最大连接数: %d\n", ap_config.ap.max_connection);
+    printf("最大连接数: 10\n");
 }
 
 void startWiFiTask(void* parameter) {
-    // 启动WiFi
-    esp_wifi_start();
-    
     while(1) {
         if (wifiConfig.configured) {
             if (WiFi.status() != WL_CONNECTED) {
-                // 配置STA
-                wifi_config_t sta_config = {};
-                strcpy((char*)sta_config.sta.ssid, wifiConfig.ssid);
-                strcpy((char*)sta_config.sta.password, wifiConfig.password);
-                esp_wifi_set_config(WIFI_IF_STA, &sta_config);
-                
+                // 连接到配置的WiFi
                 WiFi.begin(wifiConfig.ssid, wifiConfig.password);
                 printf("正在连接WiFi...\n");
                 int attempts = 0;
@@ -222,21 +208,15 @@ void startWiFiTask(void* parameter) {
                     printf("\nWiFi连接成功！\n");
                     printf("IP地址: %s\n", WiFi.localIP().toString().c_str());
                     
-                    // 先设置AP模式
-                    setupAP();
-                    // 然后启用NAT路由
+                    // 启用NAT路由
                     enableNAT();
                 } else {
                     printf("\nWiFi连接失败，请检查配置\n");
-                    // 如果连接失败，仍然启动AP模式
-                    setupAP();
                 }
             }
             
             // 检查网络状态
             checkAndRestartNetworking();
-        } else {
-            setupAP();
         }
         vTaskDelay(pdMS_TO_TICKS(5000));
     }

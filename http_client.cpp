@@ -53,14 +53,13 @@ void startHttpClientTask(void* parameter) {
 }
 
 void initHttpClient() {
-    xTaskCreatePinnedToCore(
+    xTaskCreate(
         startHttpClientTask,
         "HttpClientTask",
         4096,
         NULL,
         1,
-        &httpClientTaskHandle,
-        0
+        &httpClientTaskHandle
     );
     printf("HTTP客户端初始化完成\n");
 } 

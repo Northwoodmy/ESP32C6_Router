@@ -439,10 +439,6 @@ const char* html_page = R"rawliteral(
                                     <span>剩余堆栈</span>
                                     <span>${formatBytes(task.stackHigh)}</span>
                                 </div>
-                                <div>
-                                    <span>运行核心</span>
-                                    <span>Core ${task.core}</span>
-                                </div>
                             </div>
                         `;
                         taskList.appendChild(taskItem);
@@ -632,8 +628,7 @@ void handleTaskInfo() {
             json += "{";
             json += "\"name\":\"" + String(taskStatusArray[i].pcTaskName) + "\",";
             json += "\"priority\":" + String(taskStatusArray[i].uxCurrentPriority) + ",";
-            json += "\"stackHigh\":" + String(taskStatusArray[i].usStackHighWaterMark) + ",";
-            json += "\"core\":" + String(taskStatusArray[i].xCoreID);
+            json += "\"stackHigh\":" + String(taskStatusArray[i].usStackHighWaterMark);
             json += "}";
         }
         
