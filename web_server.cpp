@@ -747,10 +747,24 @@ void initWebServer() {
 }
 
 void startWebServerTask(void* parameter) {
+    // 添加延迟以确保网络初始化完成
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    
+    // 初始化服务器
     server.begin();
-    printf("Web server started\n");
+    printf("Web server started on port 80\n");
+    printf("AP IP地址: %s\n", WiFi.softAPIP().toString().c_str());
+    printf("请通过 http://%s 访问配置页面\n", WiFi.softAPIP().toString().c_str());
     
     while(1) {
+        // 检查AP是否正确配置
+        if (WiFi.softAPIP() == IPAddress(0, 0, 0, 0)) {
+            printf("警告: AP IP 地址无效，尝试重新配置...\n");
+            WiFi.softAPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0));
+            vTaskDelay(pdMS_TO_TICKS(1000));
+        }
+        
+        // 处理客户端请求
         server.handleClient();
         vTaskDelay(pdMS_TO_TICKS(10));
     }

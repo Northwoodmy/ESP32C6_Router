@@ -4,25 +4,35 @@
 #include "http_client.h"
 
 void setup() {
-    // 初始化各个模块
+    // 初始化串口
+    Serial.begin(115200);
+    
+    // 打印启动信息
+    Serial.println("\n\n初始化开始...");
+    
+    // 先初始化配置管理器
     initConfigManager();
+    
+    // 初始化WiFi管理器
     initWiFiManager();
-    initWebServer();
-    //initHttpClient();
     
     // 加载WiFi配置
     loadWiFiConfig();
     
-    // 创建任务
+    // 初始化并启动Web服务器
+    initWebServer();
+    
+    // 创建任务，确保WiFi任务优先级高于Web服务器任务
     xTaskCreate(
         startWiFiTask,
         "WiFiTask",
         8192,
         NULL,
-        1,
+        2,  // 更高的优先级
         &wifiTaskHandle
     );
     
+    // 创建Web服务器任务
     xTaskCreate(
         startWebServerTask,
         "WebServerTask",
@@ -31,6 +41,8 @@ void setup() {
         1,
         &webServerTaskHandle
     );
+    
+    Serial.println("所有任务已启动");
 }
 
 void loop() {
